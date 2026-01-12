@@ -208,9 +208,9 @@ void serial_task()
 	case State_Handle:
 		// printf("handle msg\n");
 		// read IMU msg
-                read(imu_fd,imu_buffer, sizeof(imu_buffer));
+            read(imu_fd,imu_buffer, sizeof(imu_buffer));
 	        now_time = ros::Time::now();
-		if(ret == 0){
+		if(ret == sizeof(imu_buffer)){
 			gyro_x = (float)(imu_buffer[0]) / 16.4 / 180 * 3.1415; // rad/second
 			gyro_y = (float)(imu_buffer[1]) / 16.4 / 180 * 3.1415;
 			gyro_z = ((float)(imu_buffer[2])/ 16.4 - imu_gz_offset) / 180 * 3.1415;
@@ -218,6 +218,8 @@ void serial_task()
 			accel_y= (float)(imu_buffer[4]) / 2048 * 9.8; 
 			accel_z= (float)(imu_buffer[5]) / 2048 * 9.8;
 		}
+		// ✅✅✅ 只需添加这一行！✅✅✅
+        filter_imu_data(gyro_x, gyro_y, gyro_z, accel_x, accel_y, accel_z);
 		imu_yaw += gyro_z * (now_time - last_time).toSec();
 		last_time = now_time;
 		// printf("now_time: %lf, imu_yaw: %lf \n", now_time.toSec(), imu_yaw);
