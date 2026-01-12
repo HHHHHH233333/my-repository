@@ -146,7 +146,7 @@ void SetVelocity(double x, double y, double yaw)
 void cmd_callback(const geometry_msgs::Twist& msg)
 {
   x = msg.linear.x;
-  y = msg.linear.x;
+  y = msg.linear.y;
   yaw = msg.angular.z;
   cmd_time = ros::Time::now();
 }
@@ -228,7 +228,7 @@ void serial_task()
 		imu_msgs.angular_velocity.z = gyro_z;
 		imu_msgs.linear_acceleration.x = accel_x;
 		imu_msgs.linear_acceleration.y = accel_y;
-		imu_msgs.linear_acceleration.z = accel_y;
+		imu_msgs.linear_acceleration.z = accel_z;
 		imu_msgs.orientation =tf::createQuaternionMsgFromRollPitchYaw(0, 0, imu_yaw);
 		imu_msgs.orientation_covariance = {0, 0, 0, 0, 0, 0, 0, 0, 0};
 		imu_msgs.angular_velocity_covariance = {0, 0, 0, 0, 0, 0, 0, 0, 0};
