@@ -3,7 +3,7 @@
   <param name="use_sim_time" value="false"/>
 
   <node name="sophon_robot" pkg="sophon_robot" type="sophon_robot_node" output="screen" respawn="true">
-    <param name="port_name" value="/dev/ttyUSB1"/>
+    <param name="port_name" value="/dev/robot_base"/>
     <param name="linear_correction" value="1.0"/>
     <param name="angular_correction" value="1.0"/>
     <param name="publish_odom_transform" value="false"/>
