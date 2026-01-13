@@ -233,8 +233,8 @@ void serial_task()
 		imu_msgs.linear_acceleration.z = accel_z;
 		imu_msgs.orientation =tf::createQuaternionMsgFromRollPitchYaw(0, 0, imu_yaw);
 		imu_msgs.orientation_covariance = {0, 0, 0, 0, 0, 0, 0, 0, 0};
-		imu_msgs.angular_velocity_covariance = {0, 0, 0, 0, 0, 0, 0, 0, 0};
-		imu_msgs.linear_acceleration_covariance = {0, 0, 0, 0, 0, 0, 0, 0, 0};
+		imu_msgs.angular_velocity_covariance = {0.02, 0, 0, 0, 0.02, 0, 0, 0, 0.02}; 
+        imu_msgs.linear_acceleration_covariance = {0.04, 0, 0, 0, 0.04, 0, 0, 0, 0.04};
 		imu_pub.publish(imu_msgs);
 
 		for(int i=0;i<4;i++){
