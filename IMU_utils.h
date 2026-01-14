@@ -101,7 +101,7 @@ static float median_filter(std::vector<float>& buffer, float new_value, int wind
     }
     
     if (buffer.size() < 3) {
-        return new_value;  // 数据不足，直接返回
+        return new_value;
     }
     
     std::vector<float> sorted = buffer;
@@ -138,33 +138,22 @@ float get_gyro_z_offset(int imu_fd) {
     float gyro_z_sum = 0.0f;
     int valid_samples = 0;
     
-    printf("[IMU] Calibrating gyro Z-axis (%d samples)...\n", IMU_SAMPLE_TIMES);
-    
     for (int i = 0; i < IMU_SAMPLE_TIMES; i++) {
         int ret = read(imu_fd, imu_buffer, sizeof(imu_buffer));
         
-        if (ret == sizeof(imu_buffer)) {  // 修复bug: 检查返回值
+        if (ret == sizeof(imu_buffer)) {
             float gyro_z = (float)(imu_buffer[2]) / GYRO_SENSITIVITY;
             
-            // 异常值过滤（静止校准时角速度应很小）
             if (is_valid_gyro(gyro_z) && fabs(gyro_z) < 50.0f) {
                 gyro_z_sum += gyro_z;
                 valid_samples++;
             }
         }
-        usleep(5000); // 5ms间隔
-    }
-    
-    if (valid_samples < IMU_SAMPLE_TIMES * 0.8) {
-        printf("[IMU] Warning: Only %d/%d valid samples!\n", 
-               valid_samples, IMU_SAMPLE_TIMES);
+        usleep(5000);
     }
     
     float offset = (valid_samples > 0) ? (gyro_z_sum / valid_samples) : 0.0f;
-    printf("[IMU] Gyro Z offset: %.3f °/s (from %d samples)\n", 
-           offset, valid_samples);
     
-    // 自动保存到全局校准结构
     g_imu_offset.gyro_z = offset;
     g_imu_offset.is_calibrated = true;
     
@@ -182,9 +171,6 @@ int calibrate_imu_full(int imu_fd) {
     float accel_sum[3] = {0, 0, 0};
     int valid_samples = 0;
     
-    printf("[IMU] Full 6-axis calibration started...\n");
-    printf("[IMU] ⚠️  Please keep the robot STATIONARY!\n");
-    
     for (int i = 0; i < IMU_SAMPLE_TIMES; i++) {
         int ret = read(imu_fd, imu_buffer, sizeof(imu_buffer));
         
@@ -201,7 +187,6 @@ int calibrate_imu_full(int imu_fd) {
                 (float)(imu_buffer[5]) / ACCEL_SENSITIVITY
             };
             
-            // 数据有效性检查
             bool valid = true;
             for (int j = 0; j < 3; j++) {
                 if (!is_valid_gyro(gyro[j]) || !is_valid_accel(accel[j])) {
@@ -219,39 +204,22 @@ int calibrate_imu_full(int imu_fd) {
             }
         }
         
-        // 进度显示
-        if ((i + 1) % 40 == 0) {
-            printf("\r  Progress: %3d%%", (i + 1) * 100 / IMU_SAMPLE_TIMES);
-            fflush(stdout);
-        }
-        
         usleep(5000);
     }
-    printf("\n");
     
     if (valid_samples < IMU_SAMPLE_TIMES * 0.8) {
-        printf("[IMU] ❌ Error: Too few valid samples (%d/%d)\n", 
-               valid_samples, IMU_SAMPLE_TIMES);
         return -1;
     }
     
-    // 计算偏移量
     g_imu_offset.gyro_x = gyro_sum[0] / valid_samples;
     g_imu_offset.gyro_y = gyro_sum[1] / valid_samples;
     g_imu_offset.gyro_z = gyro_sum[2] / valid_samples;
     
-    // 加速度计Z轴应该约为1g（减去重力）
     g_imu_offset.accel_x = accel_sum[0] / valid_samples;
     g_imu_offset.accel_y = accel_sum[1] / valid_samples;
     g_imu_offset.accel_z = (accel_sum[2] / valid_samples) - 1.0f;
     
     g_imu_offset.is_calibrated = true;
-    
-    printf("[IMU] ✅ Calibration completed:\n");
-    printf("      Gyro  offset: [%6.3f, %6.3f, %6.3f] °/s\n", 
-           g_imu_offset.gyro_x, g_imu_offset.gyro_y, g_imu_offset.gyro_z);
-    printf("      Accel offset: [%6.3f, %6.3f, %6.3f] g\n", 
-           g_imu_offset.accel_x, g_imu_offset.accel_y, g_imu_offset.accel_z);
     
     return 0;
 }
@@ -284,7 +252,6 @@ void filter_imu_data(float& gyro_x_o, float& gyro_y_o, float& gyro_z_o,
         
         g_filter_state.initialized = true;
         
-        printf("[IMU] Filter initialized\n");
         return;
     }
     
@@ -327,7 +294,6 @@ void filter_imu_data(float& gyro_x_o, float& gyro_y_o, float& gyro_z_o,
     
     accel_x_o = apply_deadzone(accel_x_o, ACCEL_DEADZONE);
     accel_y_o = apply_deadzone(accel_y_o, ACCEL_DEADZONE);
-    // 注意: accel_z 不做死区处理（因为有重力）
     
     // ===== 5. 低通滤波 (陀螺仪) =====
     gyro_x_o = lowpass_filter(gyro_x_o, g_filter_state.prev_gyro_x, ALPHA_GYRO);
@@ -340,17 +306,12 @@ void filter_imu_data(float& gyro_x_o, float& gyro_y_o, float& gyro_z_o,
                                 g_filter_state.kalman_p_gyro_z,
                                 KALMAN_Q, KALMAN_R);
     
-    // ===== 7. 中值滤波 (可选，去除脉冲噪声) =====
-    // 默认关闭，可根据需要启用
-    // gyro_z_o = median_filter(g_filter_state.gyro_z_buffer, 
-    //                          gyro_z_o, MEDIAN_WINDOW_SIZE);
-    
-    // ===== 8. 低通滤波 (加速度计) =====
+    // ===== 7. 低通滤波 (加速度计) =====
     accel_x_o = lowpass_filter(accel_x_o, g_filter_state.prev_accel_x, ALPHA_ACCEL);
     accel_y_o = lowpass_filter(accel_y_o, g_filter_state.prev_accel_y, ALPHA_ACCEL);
     accel_z_o = lowpass_filter(accel_z_o, g_filter_state.prev_accel_z, ALPHA_ACCEL);
     
-    // ===== 9. 更新历史值 =====
+    // ===== 8. 更新历史值 =====
     g_filter_state.prev_gyro_x = gyro_x_o;
     g_filter_state.prev_gyro_y = gyro_y_o;
     g_filter_state.prev_gyro_z = gyro_z_o;
@@ -368,17 +329,12 @@ void filter_imu_data(float& gyro_x_o, float& gyro_y_o, float& gyro_z_o,
  */
 bool check_imu_health(float gyro_x, float gyro_y, float gyro_z,
                       float accel_x, float accel_y, float accel_z) {
-    // 检查陀螺仪
     if (!is_valid_gyro(gyro_x) || !is_valid_gyro(gyro_y) || !is_valid_gyro(gyro_z)) {
-        printf("[IMU] ❌ Error: Gyro values out of range!\n");
         return false;
     }
     
-    // 检查加速度计（总加速度应接近1g）
     float accel_magnitude = sqrtf(accel_x*accel_x + accel_y*accel_y + accel_z*accel_z);
     if (fabs(accel_magnitude - 1.0f) > 0.5f) {
-        printf("[IMU] ⚠️  Warning: Accel magnitude abnormal: %.2fg (expected ~1g)\n", 
-               accel_magnitude);
         return false;
     }
     
@@ -400,7 +356,6 @@ void print_imu_data(float gyro_x, float gyro_y, float gyro_z,
 void reset_imu_filter() {
     g_filter_state.initialized = false;
     g_filter_state.gyro_z_buffer.clear();
-    printf("[IMU] Filter reset\n");
 }
 
 /**
@@ -422,8 +377,6 @@ void set_imu_offset(float gx, float gy, float gz,
     g_imu_offset.accel_y = ay;
     g_imu_offset.accel_z = az;
     g_imu_offset.is_calibrated = true;
-    
-    printf("[IMU] Offset loaded from parameters\n");
 }
 
 #endif // __IMU_UTILS
