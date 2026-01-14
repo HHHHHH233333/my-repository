@@ -2,7 +2,7 @@
 <launch>
   <param name="use_sim_time" value="false"/>
 
-  <node name="sophon_robot" pkg="sophon_robot" type="sophon_robot_node" output="screen" respawn="true">
+  <node name="sophon_robot" pkg="sophon_robot" type="kt001_1" output="screen" respawn="true">
     <param name="port_name" value="/dev/robot_base"/>
     <param name="linear_correction" value="1.0"/>
     <param name="angular_correction" value="1.0"/>
