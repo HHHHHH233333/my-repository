@@ -232,8 +232,14 @@ void serial_task()
 		imu_msgs.linear_acceleration.y = accel_y;
 		imu_msgs.linear_acceleration.z = accel_z;
 		imu_msgs.orientation =tf::createQuaternionMsgFromRollPitchYaw(0, 0, imu_yaw);
-		imu_msgs.orientation_covariance = {0, 0, 0, 0, 0, 0, 0, 0, 0};
-		imu_msgs.angular_velocity_covariance = {0.02, 0, 0, 0, 0.02, 0, 0, 0, 0.02}; 
+		// 方向协方差 (Orientation Covariance)
+        // 最后的 1e-6 对应 Yaw (航向角) 的方差。我们非常信任 IMU 的积分结果。  
+		imu_msgs.orientation_covariance = {1e6, 0, 0, 0, 1e6, 0, 0, 0, 1e-6 };
+        // 角速度协方差 (Angular Velocity Covariance)
+        // 全部设为极小值，表示我们非常信任陀螺仪的实时读数
+        imu_msgs.angular_velocity_covariance = {1e-6, 0, 0, 0, 1e-6, 0, 0, 0, 1e-6};
+        // 线加速度协方差 (Linear Acceleration Covariance)
+        // 这个对平面建图影响不大，保持默认
         imu_msgs.linear_acceleration_covariance = {0.04, 0, 0, 0, 0.04, 0, 0, 0, 0.04};
 		imu_pub.publish(imu_msgs);
 
@@ -271,18 +277,25 @@ void serial_task()
 		odom.twist.twist.linear.x = vx.fvalue;
 		odom.twist.twist.linear.y = vy.fvalue;
 		odom.twist.twist.angular.z = va.fvalue;
-	        odom.twist.covariance = { 1e-9, 0, 0, 0, 0, 0, 
-					  0, 1e-3, 1e-9, 0, 0, 0, 
-					  0, 0, 1e6, 0, 0, 0,
-				          0, 0, 0, 1e6, 0, 0, 
-					  0, 0, 0, 0, 1e6, 0, 
-					  0, 0, 0, 0, 0, 0.1 };
-		odom.pose.covariance = { 1e-9, 0, 0, 0, 0, 0, 
-				         0, 1e-3, 1e-9, 0, 0, 0, 
-					 0, 0, 1e6, 0, 0, 0,
-					 0, 0, 0, 1e6, 0, 0, 
-					 0, 0, 0, 0, 1e6, 0, 
-					 0, 0, 0, 0, 0, 1e3 };
+	           // 速度协方差 (Twist Covariance) - EKF 主要看这个或 Pose
+        odom.twist.covariance = { 
+       0.05, 0, 0, 0, 0, 0,  // Index 0:  vx (线速度) - 稍微不信任 (0.05)
+       0, 0.05, 0, 0, 0, 0,  // Index 7:  vy
+       0, 0, 1e6, 0, 0, 0,   // Index 14: vz (机器人不飞，设很大忽略)
+       0, 0, 0, 1e6, 0, 0,   // Index 21: roll
+       0, 0, 0, 0, 1e6, 0,   // Index 28: pitch
+       0, 0, 0, 0, 0, 0.5    // Index 35: yaw (角速度) -  非常不信任 (0.5)
+                                };
+
+                // 位姿协方差 (Pose Covariance)
+      odom.pose.covariance = { 
+      0.05, 0, 0, 0, 0, 0,  // Index 0:  x (位置)
+      0, 0.05, 0, 0, 0, 0,  // Index 7:  y
+      0, 0, 1e6, 0, 0, 0,   // Index 14: z
+      0, 0, 0, 1e6, 0, 0,   // Index 21: roll
+      0, 0, 0, 0, 1e6, 0,   // Index 28: pitch
+      0, 0, 0, 0, 0, 0.5    // Index 35: yaw (角度) -  非常不信任 (0.5)
+                             };
 	
 	        if(publish_odom_transform)odom_broadcaster.sendTransform(odom_trans);
 	        //publish the odom message
