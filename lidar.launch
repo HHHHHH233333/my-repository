@@ -11,14 +11,13 @@
     <param name="initial_reset"       type="bool"   value="true"/>
   </node>
 
-    <!-- 
-激光滤波器（可选，需安装laser_filters包）
+    <!-- 激光滤波器（可选，需安装laser_filters包） -->
 <node pkg="laser_filters" type="scan_to_scan_filter_chain" name="laser_filter" output="screen">
     <rosparam command="load" file="$(find your_package)/config/laser_filter_a1.yaml" />
     <remap from="scan" to="scan_raw"/>
     <remap from="scan_filtered" to="scan"/>
 
   <node pkg="tf" type="static_transform_publisher" name="base_link_to_laser"
-     args ="0 0.0 0.15 0.0 0.0 0.0 base_link laser 20"  />     -->
+     args ="0 0.0 0.15 0.0 0.0 0.0 base_link laser 20"  />    
 
 </launch>
