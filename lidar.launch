@@ -14,7 +14,7 @@
 
   <!-- 激光滤波器（可选，需安装laser_filters包） -->
   <node pkg="laser_filters" type="scan_to_scan_filter_chain" name="laser_filter" output="screen">
-    <rosparam command="load" file="$(find your_package)/config/laser_filter_a1.yaml" />
+    <rosparam command="load" file="$(find sophon_robot)/config/laser_filter_a1.yaml" />
     <remap from="scan" to="scan_raw"/>
     <remap from="scan_filtered" to="scan"/>
   </node>
