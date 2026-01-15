@@ -1,0 +1,41 @@
+scan_filter_chain:
+  - name: range_filter
+    type: laser_filters/LaserScanRangeFilter
+    params:
+      use_message_range_limits: false
+      lower_threshold: 0.20          # A1最小有效距离(米) - 官方0.15m，留余量
+      upper_threshold: 8.0           # A1最大12m，狭窄空间限制到8m
+      lower_replacement_value: .inf  # 小于最小值的替换为无穷
+      upper_replacement_value: .inf  # 大于最大值的替换为无穷
+  
+  - name: intensity_filter
+    type: laser_filters/LaserScanIntensityFilter
+    params:
+      lower_threshold: 100           # A1雷达强度范围0-255，降低阈值
+      upper_threshold: 255
+      disp_histogram: 0
+  
+  - name: speckle_filter
+    type: laser_filters/LaserScanSpeckleFilter
+    params:
+      filter_type: 1                 # 1=Range, 2=Distance
+      max_range: 8.0                 # 匹配range_filter的最大范围
+      max_range_difference: 0.15     # A1精度±1cm，设置15cm容差
+      filter_window: 2               # 滤波窗口大小
+  
+  - name: median_filter
+    type: laser_filters/LaserScanMedianFilter
+    params:
+      window_size: 5                 # 中值滤波窗口 - 平滑数据
+      
+  - name: box_filter
+    type: laser_filters/LaserScanBoxFilter
+    params:
+      box_frame: base_link           # 机器人基座坐标系
+      min_x: -0.30                   # 过滤机器人本体区域
+      max_x: 0.30
+      min_y: -0.30
+      max_y: 0.30
+      min_z: -1.0
+      max_z: 1.0
+      invert: true                   # true=保留框外的点
