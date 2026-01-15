@@ -9,8 +9,6 @@
     <param name="publish_odom_transform" value="false"/>
   </node>
 
-   <node name="tele_key" pkg="sophon_robot" type="teleop_key.py" output="screen" />
-
   <node pkg="robot_pose_ekf" type="robot_pose_ekf" name="robot_pose_ekf" output="screen">
     <param name="output_frame" value="odom"/>
     <param name="base_footprint_frame" value="base_footprint"/>
@@ -27,4 +25,6 @@
 
     <node pkg="tf" type="static_transform_publisher" name="base_footprint_to_base_link"      args="0 0 0.07 0 0 0 base_footprint base_link 20"/>
 	<node pkg="tf" type="static_transform_publisher" name="base_link_to_imu"       args="0 0 0.09 0 0 0 base_link base_imu_link 20"/> 
+
+    <node name="tele_key" pkg="sophon_robot" type="teleop_key.py" output="screen" />
 </launch>
