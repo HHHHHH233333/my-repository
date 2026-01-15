@@ -40,10 +40,10 @@ scan_filter_chain:
     type: laser_filters/LaserScanBoxFilter
     params:
       box_frame: base_link           # 相对于机器人本体坐标系
-      min_x: -0.30                   # 过滤范围（单位：米）
-      max_x: 0.30
-      min_y: -0.30
-      max_y: 0.30
-      min_z: -1.0
-      max_z: 1.0
+      min_x: -0.10                  # 过滤范围（单位：米）
+      max_x: 0.10
+      min_y: -0.05
+      max_y: 0.05
+      min_z: -0.05
+      max_z: 0.05
       invert: true                   # true=保留框外的点，过滤框内
