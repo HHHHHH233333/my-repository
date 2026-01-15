@@ -1,41 +1,49 @@
 scan_filter_chain:
+  # 1. 距离范围滤波 - 过滤超出有效范围的点
   - name: range_filter
     type: laser_filters/LaserScanRangeFilter
     params:
       use_message_range_limits: false
-      lower_threshold: 0.20          # A1最小有效距离(米) - 官方0.15m，留余量
-      upper_threshold: 8.0           # A1最大12m，狭窄空间限制到8m
-      lower_replacement_value: .inf  # 小于最小值的替换为无穷
-      upper_replacement_value: .inf  # 大于最大值的替换为无穷
+      lower_threshold: 0.20          # A1最小有效距离 0.15m + 安全余量
+      upper_threshold: 8.0           # 狭窄空间限制到8米
+      lower_replacement_value: .inf
+      upper_replacement_value: .inf
   
+  # 2. 强度滤波 - 过滤低质量反射点
   - name: intensity_filter
     type: laser_filters/LaserScanIntensityFilter
     params:
-      lower_threshold: 100           # A1雷达强度范围0-255，降低阈值
+      lower_threshold: 100           # A1强度范围0-255
       upper_threshold: 255
       disp_histogram: 0
   
-  - name: speckle_filter
+  # 3. 散斑滤波 - 去除孤立噪点（第一次）
+  - name: speckle_filter_1
     type: laser_filters/LaserScanSpeckleFilter
     params:
-      filter_type: 1                 # 1=Range, 2=Distance
-      max_range: 8.0                 # 匹配range_filter的最大范围
-      max_range_difference: 0.15     # A1精度±1cm，设置15cm容差
-      filter_window: 2               # 滤波窗口大小
+      filter_type: 1                 # 1=Range based
+      max_range: 8.0
+      max_range_difference: 0.15     # 相邻点最大距离差
+      filter_window: 2               # 检查前后各2个点
   
-  - name: median_filter
-    type: laser_filters/LaserScanMedianFilter
+  # 4. 散斑滤波 - 二次过滤（替代中值滤波的平滑效果）
+  - name: speckle_filter_2
+    type: laser_filters/LaserScanSpeckleFilter
     params:
-      window_size: 5                 # 中值滤波窗口 - 平滑数据
-      
+      filter_type: 1
+      max_range: 8.0
+      max_range_difference: 0.10     # 更严格的阈值
+      filter_window: 1
+  
+  # 5. 机器人本体滤波 - 过滤机器人自身
   - name: box_filter
     type: laser_filters/LaserScanBoxFilter
     params:
-      box_frame: base_link           # 机器人基座坐标系
-      min_x: -0.30                   # 过滤机器人本体区域
+      box_frame: base_link           # 相对于机器人本体坐标系
+      min_x: -0.30                   # 过滤范围（单位：米）
       max_x: 0.30
       min_y: -0.30
       max_y: 0.30
       min_z: -1.0
       max_z: 1.0
-      invert: true                   # true=保留框外的点
+      invert: true                   # true=保留框外的点，过滤框内
