@@ -146,7 +146,7 @@ void SetVelocity(double x, double y, double yaw)
 void cmd_callback(const geometry_msgs::Twist& msg)
 {
   x = msg.linear.x;
-  y = msg.linear.y;
+  y = msg.linear.x;
   yaw = msg.angular.z;
   cmd_time = ros::Time::now();
 }
@@ -208,9 +208,9 @@ void serial_task()
 	case State_Handle:
 		// printf("handle msg\n");
 		// read IMU msg
-            read(imu_fd,imu_buffer, sizeof(imu_buffer));
+            ret = read(imu_fd, imu_buffer, sizeof(imu_buffer));
 	        now_time = ros::Time::now();
-		if(ret == sizeof(imu_buffer)){
+		if(ret == 0){
 			gyro_x = (float)(imu_buffer[0]) / 16.4 / 180 * 3.1415; // rad/second
 			gyro_y = (float)(imu_buffer[1]) / 16.4 / 180 * 3.1415;
 			gyro_z = ((float)(imu_buffer[2])/ 16.4 - imu_gz_offset) / 180 * 3.1415;
@@ -218,8 +218,6 @@ void serial_task()
 			accel_y= (float)(imu_buffer[4]) / 2048 * 9.8; 
 			accel_z= (float)(imu_buffer[5]) / 2048 * 9.8;
 		}
-		// ✅✅✅ 只需添加这一行！✅✅✅
-        filter_imu_data(gyro_x, gyro_y, gyro_z, accel_x, accel_y, accel_z);
 		imu_yaw += gyro_z * (now_time - last_time).toSec();
 		last_time = now_time;
 		// printf("now_time: %lf, imu_yaw: %lf \n", now_time.toSec(), imu_yaw);
@@ -230,17 +228,11 @@ void serial_task()
 		imu_msgs.angular_velocity.z = gyro_z;
 		imu_msgs.linear_acceleration.x = accel_x;
 		imu_msgs.linear_acceleration.y = accel_y;
-		imu_msgs.linear_acceleration.z = accel_z;
+		imu_msgs.linear_acceleration.z = accel_y;
 		imu_msgs.orientation =tf::createQuaternionMsgFromRollPitchYaw(0, 0, imu_yaw);
-		// 方向协方差 (Orientation Covariance)
-        // 最后的 1e-6 对应 Yaw (航向角) 的方差。我们非常信任 IMU 的积分结果。  
-		imu_msgs.orientation_covariance = {1e6, 0, 0, 0, 1e6, 0, 0, 0, 1e-6 };
-        // 角速度协方差 (Angular Velocity Covariance)
-        // 全部设为极小值，表示我们非常信任陀螺仪的实时读数
-        imu_msgs.angular_velocity_covariance = {1e-6, 0, 0, 0, 1e-6, 0, 0, 0, 1e-6};
-        // 线加速度协方差 (Linear Acceleration Covariance)
-        // 这个对平面建图影响不大，保持默认
-        imu_msgs.linear_acceleration_covariance = {0.04, 0, 0, 0, 0.04, 0, 0, 0, 0.04};
+		imu_msgs.orientation_covariance = {0, 0, 0, 0, 0, 0, 0, 0, 0};
+		imu_msgs.angular_velocity_covariance = {0, 0, 0, 0, 0, 0, 0, 0, 0};
+		imu_msgs.linear_acceleration_covariance = {0, 0, 0, 0, 0, 0, 0, 0, 0};
 		imu_pub.publish(imu_msgs);
 
 		for(int i=0;i<4;i++){
@@ -277,25 +269,18 @@ void serial_task()
 		odom.twist.twist.linear.x = vx.fvalue;
 		odom.twist.twist.linear.y = vy.fvalue;
 		odom.twist.twist.angular.z = va.fvalue;
-	           // 速度协方差 (Twist Covariance) - EKF 主要看这个或 Pose
-        odom.twist.covariance = { 
-       0.05, 0, 0, 0, 0, 0,  // Index 0:  vx (线速度) - 稍微不信任 (0.05)
-       0, 0.05, 0, 0, 0, 0,  // Index 7:  vy
-       0, 0, 1e6, 0, 0, 0,   // Index 14: vz (机器人不飞，设很大忽略)
-       0, 0, 0, 1e6, 0, 0,   // Index 21: roll
-       0, 0, 0, 0, 1e6, 0,   // Index 28: pitch
-       0, 0, 0, 0, 0, 0.5    // Index 35: yaw (角速度) -  非常不信任 (0.5)
-                                };
-
-                // 位姿协方差 (Pose Covariance)
-      odom.pose.covariance = { 
-      0.05, 0, 0, 0, 0, 0,  // Index 0:  x (位置)
-      0, 0.05, 0, 0, 0, 0,  // Index 7:  y
-      0, 0, 1e6, 0, 0, 0,   // Index 14: z
-      0, 0, 0, 1e6, 0, 0,   // Index 21: roll
-      0, 0, 0, 0, 1e6, 0,   // Index 28: pitch
-      0, 0, 0, 0, 0, 0.5    // Index 35: yaw (角度) -  非常不信任 (0.5)
-                             };
+	        odom.twist.covariance = { 1e-9, 0, 0, 0, 0, 0, 
+					  0, 1e-3, 1e-9, 0, 0, 0, 
+					  0, 0, 1e6, 0, 0, 0,
+				          0, 0, 0, 1e6, 0, 0, 
+					  0, 0, 0, 0, 1e6, 0, 
+					  0, 0, 0, 0, 0, 0.1 };
+		odom.pose.covariance = { 1e-9, 0, 0, 0, 0, 0, 
+				         0, 1e-3, 1e-9, 0, 0, 0, 
+					 0, 0, 1e6, 0, 0, 0,
+					 0, 0, 0, 1e6, 0, 0, 
+					 0, 0, 0, 0, 1e6, 0, 
+					 0, 0, 0, 0, 0, 1e3 };
 	
 	        if(publish_odom_transform)odom_broadcaster.sendTransform(odom_trans);
 	        //publish the odom message
@@ -383,4 +368,3 @@ int main(int argc, char* argv[])
      
   return 0;
 }
-
