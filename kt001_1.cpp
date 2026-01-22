@@ -146,7 +146,7 @@ void SetVelocity(double x, double y, double yaw)
 void cmd_callback(const geometry_msgs::Twist& msg)
 {
   x = msg.linear.x;
-  y = msg.linear.x;
+  y = msg.linear.y;
   yaw = msg.angular.z;
   cmd_time = ros::Time::now();
 }
